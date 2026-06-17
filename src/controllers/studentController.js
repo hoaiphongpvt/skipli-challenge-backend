@@ -1,22 +1,22 @@
 const db = require("../config/firebase");
-const Student = require("../models/studentModel");
+const Student = require("../models/userModel");
 
-exports.getStudentById = function(id) {
-  return new Promise((resolve, reject) => {
-    const studentRef = db.collection('students').doc(id);  
-    studentRef.get()
-      .then(doc => {
-        if (!doc.exists) {
-          reject(new Error('Student not found'));
+exports.getStudentByPhone = async function(req, res) {
+  const phone = req.params.phone;
+  try {
+    const studentRef = db.collection('student').where('phone', '==', phone).limit(1);
+    const snapshot = await studentRef.get();
+        if (snapshot.empty) {
+          res.status(404).json({ error: 'Student not found' });
         } else {
-          resolve(new Student(doc.id, doc.data().name, doc.data().email, doc.data().phone));
+          const doc = snapshot.docs[0];
+          res.status(200).json(new Student(doc.id, doc.data().name, doc.data().email, doc.data().phone));
         }
-      })
-      .catch(err => {
-        reject(err);
-      });
-  });
-}
+      }
+    catch (error) {
+    res.status(500).json({ error: error.message });
+    }  
+} 
 
 exports.getAllStudents = async function(req, res) {
  try {
