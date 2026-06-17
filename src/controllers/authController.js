@@ -87,14 +87,14 @@ exports.verifyOTP = async (req, res) => {
 
         const token = jwt.sign({
             phone: phoneNumber,
-            role: userSnapshot.empty ? "guest" : userSnapshot.docs[0].data().role,
+            role: userSnapshot.docs[0].data().role,
         }, process.env.JWT_SECRET, { 
             expiresIn: process.env.JWT_EXPIRES_IN
         })
     
         return res.status(200).json({
             success: true,
-            user: userSnapshot.empty ? null : userSnapshot.docs[0].data(),
+            user: userSnapshot.docs[0].data(),
             token
         });
        
