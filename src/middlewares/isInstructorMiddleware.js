@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
 exports.isInstructor = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -7,7 +7,11 @@ exports.isInstructor = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== 'instructor') {
-        return res.status(403).json({ error: "Access denied. Only instructors can perform this action." });
+        return res
+            .status(403)
+            .json({
+                error: 'Access denied. Only instructors can perform this action.',
+            });
     }
 
     next();

@@ -3,7 +3,7 @@ const lessonRoutes = require('./lessonRoute');
 const authRoutes = require('./authRoute');
 
 module.exports = {
-  studentRoutes,
-  lessonRoutes,
-  authRoutes
+    studentRoutes,
+    lessonRoutes,
+    authRoutes,
 };
