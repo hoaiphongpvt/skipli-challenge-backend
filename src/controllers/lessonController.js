@@ -132,11 +132,11 @@ exports.deleteLesson = async (req, res) => {
         const lessonDoc = await db.collection('lesson').doc(lessonId).get();
 
         if (!lessonDoc.exists) {
-            return error(res, 404, 'Lesson not found')
+            return error(res, 404, 'Lesson not found');
         }
 
         if (user.role !== 'instructor') {
-            return error(res, 403, 'Access denied')
+            return error(res, 403, 'Access denied');
         }
 
         await lessonDoc.ref.update({
@@ -144,8 +144,61 @@ exports.deleteLesson = async (req, res) => {
             deletedAt: new Date(),
         });
 
-       return success(res, null, 200, 'Lesson deleted successfully')
+        return success(res, null, 200, 'Lesson deleted successfully');
     } catch (err) {
-        return error(res, 500, 'Internal server error', err.message)
+        return error(res, 500, 'Internal server error', err.message);
+    }
+};
+
+exports.assignLesson = async (req, res) => {
+    const { lessonId, studentPhone, title, description } = req.body;
+    const user = req.user;
+
+    try {
+        const lessonDoc = await db.collection('lesson').doc(lessonId).get();
+        if (!lessonDoc.exists) {
+            return error(res, 404, 'Lesson not found');
+        }
+
+        const studentSnapshot = await db
+            .collection('user')
+            .where('phone', '==', studentPhone)
+            .where('role', '==', 'student')
+            .limit(1)
+            .get();
+        if (studentSnapshot.empty) {
+            return error(res, 404, 'Student not found');
+        }
+
+        const existingAssignment = await db
+            .collection('lesson_assignment')
+            .where('lessonId', '==', lessonId)
+            .where('studentPhone', '==', studentPhone)
+            .get();
+        if (!existingAssignment.empty) {
+            return error(res, 409, 'Lesson already assigned');
+        }
+
+        const assignmentRef = await db.collection('lesson_assignment').add({
+            lessonId,
+            studentPhone,
+            assignedBy: user.phone,
+            assignedAt: new Date(),
+            completed: false,
+            completedAt: null,
+        });
+
+        return success(
+            res,
+            {
+                id: assignmentRef.id,
+                lessonId,
+                studentPhone,
+            },
+            201,
+            'Lesson assigned successfully'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };

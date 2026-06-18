@@ -2,6 +2,7 @@ const db = require('../config/firebase');
 const Student = require('../models/userModel');
 const { sendStudentInvitationEmail } = require('../services/emailService');
 const { success, error } = require('../helpers/apiRespone');
+const Lesson = require('../models/lessonModel');
 
 exports.getStudentByPhone = async function (req, res) {
     const phone = req.params.phone;
@@ -150,5 +151,110 @@ exports.deleteStudent = async function (req, res) {
         }
     } catch (err) {
         return error(res, 500, 'Internal server error', err.message);
+    }
+};
+
+exports.getMyLessons = async (req, res) => {
+    const { phone } = req.query;
+    const user = req.user;
+
+    try {
+        if (phone !== user.phone) {
+            return error(res, 403, 'Access denied');
+        }
+
+        const assignmentSnapshot = await db
+            .collection('lesson_assignment')
+            .where('studentPhone', '==', phone)
+            .get();
+
+        if (assignmentSnapshot.empty) {
+            return error(res, 404, 'No assignments found');
+        }
+
+        const assignments = assignmentSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+
+        const lessons = await Promise.all(
+            assignments.map(async (assignment) => {
+                const lessonDoc = await db
+                    .collection('lesson')
+                    .doc(assignment.lessonId)
+                    .get();
+
+                if (!lessonDoc.exists) {
+                    return null;
+                }
+
+                return {
+                    assignmentId: assignment.id,
+                    completed: assignment.completed,
+                    completedAt: assignment.completedAt,
+                    assignedAt: assignment.assignedAt,
+                    lesson: {
+                        id: lessonDoc.id,
+                        ...lessonDoc.data(),
+                    },
+                };
+            })
+        );
+
+        return success(
+            res,
+            {
+                total: lessons.filter(Boolean).length,
+                items: lessons.filter(Boolean),
+            },
+            200,
+            'Get my lessons successfully'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
+    }
+};
+
+exports.makeLessonDone = async (req, res) => {
+    const { lessonId } = req.params;
+    const user = req.user;
+
+    try {
+        const assignmentSnapshot = await db
+            .collection('lesson_assignment')
+            .where('lessonId', '==', lessonId)
+            .where('studentPhone', '==', user.phone)
+            .limit(1)
+            .get();
+
+        if (assignmentSnapshot.empty) {
+            return error(res, 404, 'No lesson assignment found');
+        }
+
+        const assignmentDoc = assignmentSnapshot.docs[0];
+        const assignmentData = assignmentDoc.data();
+
+        if (assignmentData.completed) {
+            return error(res, 400, 'Lesson already completed');
+        }
+
+        await assignmentDoc.ref.update({
+            completed: true,
+            completedAt: new Date(),
+        });
+
+        const updatedDoc = await assignmentDoc.ref.get();
+
+        return success(
+            res,
+            {
+                id: updatedDoc.id,
+                ...updatedDoc.data(),
+            },
+            200,
+            'Lesson marked as completed successfully'
+        );
+    } catch (err) {
+        error(res, 500, 'Internal server error', err.message);
     }
 };
