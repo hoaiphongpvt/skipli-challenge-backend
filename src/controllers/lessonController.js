@@ -1,10 +1,12 @@
 const db = require('../config/firebase');
 const jwt = require('jsonwebtoken');
 const Lesson = require('../models/lessonModel');
+const { success, error } = require('../helpers/apiRespone');
 
 exports.getAllLessons = async (req, res) => {
     try {
         const lessonSnapshot = await db.collection('lesson').get();
+        if (lessonSnapshot.empty) return error(res, 404, 'No lessons found');
         const lessons = lessonSnapshot.docs.map(
             (doc) =>
                 new Lesson(
@@ -16,9 +18,9 @@ exports.getAllLessons = async (req, res) => {
                     doc.data().updatedAt
                 )
         );
-        res.status(200).json(lessons);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        return success(res, lessons, 200, 'Get lessons successfully');
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err, message);
     }
 };
 
@@ -30,8 +32,9 @@ exports.getLessonById = async (req, res) => {
             .doc(lessonId)
             .get();
         if (!lessonSnapshot.exists) {
-            return res.status(404).json({ error: 'Lesson not found' });
+            return error(res, 404, 'Lesson not found');
         }
+
         const lesson = new Lesson(
             lessonSnapshot.id,
             lessonSnapshot.data().name,
@@ -40,9 +43,9 @@ exports.getLessonById = async (req, res) => {
             lessonSnapshot.data().createdAt,
             lessonSnapshot.data().updatedAt
         );
-        res.status(200).json(lesson);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        return success(res, lesson, 200, 'Get lesson successfully');
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
 
@@ -65,9 +68,9 @@ exports.createLesson = async (req, res) => {
             newLessonSnapshot.data().createdBy,
             newLessonSnapshot.data().createdAt
         );
-        res.status(201).json(newLesson);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        return success(res, newLesson, 201, 'Lesson created successfully');
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
 
@@ -77,31 +80,47 @@ exports.editLesson = async (req, res) => {
     const user = req.user;
 
     try {
-        const lessonRef = db.collection('lesson').doc(lessonId);
-        const lessonSnapshot = await lessonRef.get();
+        const lessonDoc = await db.collection('lesson').doc(lessonId).get();
 
-        if (!lessonSnapshot.exists) {
-            return res.status(404).json({ error: 'Lesson not found' });
+        if (!lessonDoc.exists) {
+            return error(res, 404, 'Lesson not found');
         }
-        if (lessonSnapshot.data().createdBy !== user.phone) {
-            return res.status(403).json({
-                error: 'Access denied. You can only edit lessons you created.',
-            });
+
+        const lesson = lessonDoc.data();
+
+        if (lesson.isDeleted) {
+            return error(res, 404, 'Lesson not found');
+        }
+
+        if (lesson.createdBy !== user.phone) {
+            return error(
+                res,
+                403,
+                'Access denied. You can only edit lessons you created.'
+            );
         }
 
         const updatedAt = new Date();
-        await lessonRef.update({ name, description, updatedAt });
 
-        res.status(200).json({
-            message: 'Lesson updated successfuly.',
-            data: {
-                name,
-                description,
-                updatedAt,
-            },
+        await lessonDoc.ref.update({
+            name,
+            description,
+            updatedAt,
         });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+
+        const updatedLessonDoc = await lessonDoc.ref.get();
+
+        return success(
+            res,
+            {
+                id: updatedLessonDoc.id,
+                ...updatedLessonDoc.data(),
+            },
+            200,
+            'Lesson updated successfully.'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
 
@@ -113,15 +132,11 @@ exports.deleteLesson = async (req, res) => {
         const lessonDoc = await db.collection('lesson').doc(lessonId).get();
 
         if (!lessonDoc.exists) {
-            return res.status(404).json({
-                error: 'Lesson not found',
-            });
+            return error(res, 404, 'Lesson not found')
         }
 
         if (user.role !== 'instructor') {
-            return res.status(403).json({
-                error: 'Access denied',
-            });
+            return error(res, 403, 'Access denied')
         }
 
         await lessonDoc.ref.update({
@@ -129,11 +144,8 @@ exports.deleteLesson = async (req, res) => {
             deletedAt: new Date(),
         });
 
-        return res.status(200).json({
-            success: true,
-            message: 'Lesson deleted successfully',
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+       return success(res, null, 200, 'Lesson deleted successfully')
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message)
     }
 };
