@@ -84,11 +84,9 @@ exports.editLesson = async (req, res) => {
             return res.status(404).json({ error: 'Lesson not found' });
         }
         if (lessonSnapshot.data().createdBy !== user.phone) {
-            return res
-                .status(403)
-                .json({
-                    error: 'Access denied. You can only edit lessons you created.',
-                });
+            return res.status(403).json({
+                error: 'Access denied. You can only edit lessons you created.',
+            });
         }
 
         const updatedAt = new Date();

@@ -2,6 +2,7 @@ const twilioClient = require('../config/twilio');
 const db = require('../config/firebase');
 const jwt = require('jsonwebtoken');
 const formatVietnamPhone = require('../helpers/formatPhoneNumber');
+const { success, error } = require('../helpers/apiRespone');
 
 exports.sendOTP = async (req, res) => {
     const { phone } = req.body;
@@ -26,22 +27,14 @@ exports.sendOTP = async (req, res) => {
             await db.collection('otp').add(data);
         } else {
             const docId = snapshot.docs[0].id;
-
             await db.collection('otp').doc(docId).update(data);
         }
 
         console.log(`OTP for ${phone}: ${otp}`);
 
-        return res.status(200).json({
-            success: true,
-            message: 'OTP sent successfully',
-        });
-    } catch (error) {
-        console.error('Error sending OTP:', error);
-
-        return res.status(500).json({
-            error: 'Failed to send OTP',
-        });
+        return success(res, null, 200, 'OTP sent successfully');
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
 
@@ -56,22 +49,16 @@ exports.verifyOTP = async (req, res) => {
             .get();
 
         if (snapshot.empty) {
-            return res.status(400).json({
-                error: 'No OTP found for this phone number',
-            });
+            return error(res, 400, 'Invalid phone number');
         }
 
         const doc = snapshot.docs[0];
         const data = doc.data();
 
         if (data.otp !== otp) {
-            return res.status(400).json({
-                error: 'Invalid OTP',
-            });
+            return error(res, 400, 'Invalid OTP');
         } else if (data.expiresAt.toDate() < new Date()) {
-            return res.status(400).json({
-                error: 'OTP has expired',
-            });
+            return error(res, 400, 'OTP has expired');
         } else {
             await db.collection('otp').doc(doc.id).delete();
         }
@@ -94,15 +81,13 @@ exports.verifyOTP = async (req, res) => {
             }
         );
 
-        return res.status(200).json({
-            success: true,
-            user: userSnapshot.docs[0].data(),
-            token,
-        });
-    } catch (error) {
-        console.error('Error verifying OTP:', error);
-        return res.status(500).json({
-            error: 'Failed to verify OTP',
-        });
+        return success(
+            res,
+            { user: userSnapshot.docs[0].data(), token },
+            200,
+            'Login successfully'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
