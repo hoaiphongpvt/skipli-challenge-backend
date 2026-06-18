@@ -80,7 +80,7 @@ exports.deleteStudent = async function(req, res) {
     const studentRef = db.collection('user').where('phone', '==', phone).limit(1);
     const snapshot = await studentRef.get();  
     if (snapshot.empty) {
-      res.status(404).json({ error: 'Student not found' });
+      return res.status(404).json({ error: 'Student not found' });
     }
     else {
       const doc = snapshot.docs[0];
