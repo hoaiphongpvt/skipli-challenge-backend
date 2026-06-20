@@ -6,7 +6,7 @@ const { isInstructor } = require('../middlewares/isInstructorMiddleware');
 const studentController = require('../controllers/studentController');
 
 router.get('/myLessons', auth, studentController.getMyLessons);
-router.get('/', studentController.getAllStudents);
+router.get('/', auth, isInstructor, studentController.getAllStudents);
 router.get('/:phone', studentController.getStudentByPhone);
 router.post('/', auth, isInstructor, studentController.createStudent);
 router.put('/:phone', auth, isInstructor, studentController.editStudent);

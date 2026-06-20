@@ -41,7 +41,9 @@ exports.getAllStudents = async function (req, res) {
                     doc.id,
                     doc.data().name,
                     doc.data().email,
-                    doc.data().phone
+                    doc.data().phone,
+                    doc.data().role,
+                    doc.data().createdAt
                 )
         );
         return success(

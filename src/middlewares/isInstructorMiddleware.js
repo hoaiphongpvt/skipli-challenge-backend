@@ -2,8 +2,7 @@ const jwt = require('jsonwebtoken');
 const { error } = require('../helpers/apiRespone');
 
 exports.isInstructor = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+   const token = req.cookies.accessToken
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 

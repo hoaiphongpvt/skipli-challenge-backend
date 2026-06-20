@@ -3,13 +3,18 @@ const db = require('../config/firebase');
 const jwt = require('jsonwebtoken');
 const formatVietnamPhone = require('../helpers/formatPhoneNumber');
 const { success, error } = require('../helpers/apiRespone');
+const { sendSMS } = require('../services/smsService');
 
 exports.sendOTP = async (req, res) => {
     const { phone } = req.body;
-
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     try {
+        const existPhone = await db.collection('user').where('phone', '==', phone).where('isDeleted', '==', false).limit(1).get()
+        if(existPhone.empty) {
+            return error(res, 404, 'There is no account for phone number: ' + phone)
+        }
+        //sendSMS();
         const snapshot = await db
             .collection('otp')
             .where('phone', '==', phone)
@@ -40,7 +45,6 @@ exports.sendOTP = async (req, res) => {
 
 exports.verifyOTP = async (req, res) => {
     const { phone, otp } = req.body;
-
     try {
         const snapshot = await db
             .collection('otp')
@@ -81,9 +85,16 @@ exports.verifyOTP = async (req, res) => {
             }
         );
 
+        res.cookie("accessToken", token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax",
+            maxAge: 24 * 60 * 60 * 1000,
+        });
+
         return success(
             res,
-            { user: userSnapshot.docs[0].data(), token },
+            { user: userSnapshot.docs[0].data() },
             200,
             'Login successfully'
         );

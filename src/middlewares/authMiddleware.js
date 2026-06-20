@@ -2,8 +2,7 @@ const jwt = require('jsonwebtoken');
 const { error } = require('../helpers/apiRespone');
 
 exports.auth = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = req.cookies.accessToken;
 
     if (!token) {
         return error(res, 401, 'Access denied');
