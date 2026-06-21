@@ -27,16 +27,39 @@ exports.getStudentByPhone = async function (req, res) {
 
 exports.getAllStudents = async function (req, res) {
     try {
-        const studentSnapshot = await db
-            .collection('user')
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+
+        const offset = (page - 1) * limit;
+
+        let query = db.collection('user')
             .where('role', '==', 'student')
-            .where('isDeleted', '==', false)
-            .orderBy('createdAt', 'desc')
-            .get();
+            .where('isDeleted', '==', false);
+
+        if (search.trim() !== '') {
+            query = query
+                .orderBy('name')
+                .startAt(search)
+                .endAt(search + '\uf8ff');
+        } else {
+            query = query.orderBy('createdAt', 'desc');
+        }
+
+        const totalSnapshot = await query.count().get();
+        const total = totalSnapshot.data().count;
+
+        const studentSnapshot = await query.limit(limit).offset(offset).get();
 
         if (studentSnapshot.empty) {
-            return error(res, 404, 'No students found!');
+            return success(
+                res,
+                { total: 0, students: [] },
+                200,
+                'No students match the criteria'
+            );
         }
+
         const students = studentSnapshot.docs.map(
             (doc) =>
                 new Student(
@@ -45,12 +68,13 @@ exports.getAllStudents = async function (req, res) {
                     doc.data().email,
                     doc.data().phone,
                     doc.data().role,
-                    doc.data().createdAt
+                    doc.data().createdAt?.toDate ? doc.data().createdAt.toDate().toISOString() : doc.data().createdAt
                 )
         );
+
         return success(
             res,
-            { total: students.length, students },
+            { total, students },
             200,
             'Get students list successfully'
         );
