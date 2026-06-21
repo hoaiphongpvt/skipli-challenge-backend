@@ -30,6 +30,8 @@ exports.getAllStudents = async function (req, res) {
         const studentSnapshot = await db
             .collection('user')
             .where('role', '==', 'student')
+            .where('isDeleted', '==', false)
+            .orderBy('createdAt', 'desc')
             .get();
 
         if (studentSnapshot.empty) {
@@ -58,7 +60,7 @@ exports.getAllStudents = async function (req, res) {
 };
 
 exports.createStudent = async function (req, res) {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, role } = req.body;
     try {
         const existingStudentRef = db
             .collection('user')
@@ -78,7 +80,7 @@ exports.createStudent = async function (req, res) {
             name,
             email,
             phone,
-            role: 'student',
+            role,
             isDeleted: false,
             createdAt: new Date(),
         });
@@ -104,7 +106,7 @@ exports.createStudent = async function (req, res) {
 
 exports.editStudent = async function (req, res) {
     const phone = req.params.phone;
-    const { name, email } = req.body;
+    const { name, email, role } = req.body;
     try {
         const studentRef = db
             .collection('user')
@@ -114,12 +116,13 @@ exports.editStudent = async function (req, res) {
 
         if (!snapshot.empty) {
             const doc = snapshot.docs[0];
-            await doc.ref.update({ name, email, updatedAt: new Date() });
+            await doc.ref.update({ name, email, role, updatedAt: new Date() });
             const updatedStudent = {
                 id: doc.id,
                 ...doc.data(),
                 name,
                 email,
+                role,
                 updatedAt: new Date(),
             };
             return success(

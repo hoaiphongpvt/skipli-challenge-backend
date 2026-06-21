@@ -5,7 +5,7 @@ const { success, error } = require('../helpers/apiRespone');
 
 exports.getAllLessons = async (req, res) => {
     try {
-        const lessonSnapshot = await db.collection('lesson').get();
+        const lessonSnapshot = await db.collection('lesson').where('isDeleted', '==', false).orderBy('createdAt', 'desc').get();
         if (lessonSnapshot.empty) return error(res, 404, 'No lessons found');
         const lessons = lessonSnapshot.docs.map(
             (doc) =>
@@ -18,9 +18,9 @@ exports.getAllLessons = async (req, res) => {
                     doc.data().updatedAt
                 )
         );
-        return success(res, lessons, 200, 'Get lessons successfully');
+        return success(res, {lessons, total: lessons.length}, 200, 'Get lessons successfully');
     } catch (err) {
-        return error(res, 500, 'Internal server error', err, message);
+        return error(res, 500, 'Internal server error', err.message);
     }
 };
 
@@ -59,6 +59,7 @@ exports.createLesson = async (req, res) => {
             description,
             createdBy: user.phone,
             createdAt: new Date(),
+            isDeleted: false
         });
         const newLessonSnapshot = await newLessonRef.get();
         const newLesson = new Lesson(

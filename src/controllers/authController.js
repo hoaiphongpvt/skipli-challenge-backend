@@ -60,9 +60,9 @@ exports.verifyOTP = async (req, res) => {
         const data = doc.data();
 
         if (data.otp !== otp) {
-            return error(res, 400, 'Invalid OTP');
+            return error(res, 403, 'Invalid OTP');
         } else if (data.expiresAt.toDate() < new Date()) {
-            return error(res, 400, 'OTP has expired');
+            return error(res, 403, 'OTP has expired');
         } else {
             await db.collection('otp').doc(doc.id).delete();
         }
