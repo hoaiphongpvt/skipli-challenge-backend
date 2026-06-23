@@ -5,6 +5,13 @@ const { isInstructor } = require('../middlewares/isInstructorMiddleware');
 
 const lessonController = require('../controllers/lessonController');
 
+router.get(
+    '/assignedLessons',
+    auth,
+    isInstructor,
+    lessonController.getAssignedLessons
+);
+router.get('/statistics', auth, lessonController.getAssignmentStatistics);
 router.get('/', auth, isInstructor, lessonController.getAllLessons);
 router.get('/:id', auth, lessonController.getLessonById);
 router.post('/', auth, isInstructor, lessonController.createLesson);

@@ -5,7 +5,7 @@ class User {
         this.email = email;
         this.phone = phone;
         this.role = role;
-        this.createdAt = createdAt
+        this.createdAt = createdAt;
     }
 }
 

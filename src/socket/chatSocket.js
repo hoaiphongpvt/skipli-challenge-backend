@@ -9,21 +9,15 @@ module.exports = (io) => {
         });
 
         socket.on('send-message', async (data) => {
-            const {
+            const { roomId, senderPhone, message } = data;
+
+            const messageRef = await db.collection('chat_messages').add({
                 roomId,
                 senderPhone,
                 message,
-            } = data;
-
-            const messageRef = await db
-                .collection('chat_messages')
-                .add({
-                    roomId,
-                    senderPhone,
-                    message,
-                    isRead: false,
-                    createdAt: new Date(),
-                });
+                isRead: false,
+                createdAt: new Date(),
+            });
 
             io.to(roomId).emit('receive-message', {
                 id: messageRef.id,

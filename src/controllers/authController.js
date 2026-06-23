@@ -10,9 +10,18 @@ exports.sendOTP = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     try {
-        const existPhone = await db.collection('user').where('phone', '==', phone).where('isDeleted', '==', false).limit(1).get()
-        if(existPhone.empty) {
-            return error(res, 404, 'There is no account for phone number: ' + phone)
+        const existPhone = await db
+            .collection('user')
+            .where('phone', '==', phone)
+            .where('isDeleted', '==', false)
+            .limit(1)
+            .get();
+        if (existPhone.empty) {
+            return error(
+                res,
+                404,
+                'There is no account for phone number: ' + phone
+            );
         }
         //sendSMS();
         const snapshot = await db
@@ -85,10 +94,10 @@ exports.verifyOTP = async (req, res) => {
             }
         );
 
-        res.cookie("accessToken", token, {
+        res.cookie('accessToken', token, {
             httpOnly: true,
             secure: false,
-            sameSite: "lax",
+            sameSite: 'lax',
             maxAge: 24 * 60 * 60 * 1000,
         });
 

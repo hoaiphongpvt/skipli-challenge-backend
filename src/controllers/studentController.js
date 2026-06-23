@@ -33,7 +33,8 @@ exports.getAllStudents = async function (req, res) {
 
         const offset = (page - 1) * limit;
 
-        let query = db.collection('user')
+        let query = db
+            .collection('user')
             .where('role', '==', 'student')
             .where('isDeleted', '==', false);
 
@@ -68,7 +69,9 @@ exports.getAllStudents = async function (req, res) {
                     doc.data().email,
                     doc.data().phone,
                     doc.data().role,
-                    doc.data().createdAt?.toDate ? doc.data().createdAt.toDate().toISOString() : doc.data().createdAt
+                    doc.data().createdAt?.toDate
+                        ? doc.data().createdAt.toDate().toISOString()
+                        : doc.data().createdAt
                 )
         );
 
@@ -263,12 +266,12 @@ exports.makeLessonDone = async (req, res) => {
         const assignmentDoc = assignmentSnapshot.docs[0];
         const assignmentData = assignmentDoc.data();
 
-        if (assignmentData.completed) {
+        if (assignmentData.status === 'completed') {
             return error(res, 400, 'Lesson already completed');
         }
 
         await assignmentDoc.ref.update({
-            completed: true,
+            status: 'completed',
             completedAt: new Date(),
         });
 

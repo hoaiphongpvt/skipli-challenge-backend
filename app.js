@@ -4,25 +4,26 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const server = http.createServer(app);
-var cookieParser = require('cookie-parser')
+var cookieParser = require('cookie-parser');
 
 const db = require('./src/config/firebase');
 const route = require('./src/routes/index');
 
-app.use(cors({
-    origin: "http://localhost:3001",
-    credentials: true
-}));
+app.use(
+    cors({
+        origin: 'http://localhost:3001',
+        credentials: true,
+    })
+);
 
 app.use(express.json());
-app.use(cookieParser())
+app.use(cookieParser());
 
 const io = new Server(server, {
     cors: {
         origin: '*',
     },
 });
-
 
 app.get('/', (req, res) => {
     res.send('Hello, World!');

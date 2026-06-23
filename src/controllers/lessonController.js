@@ -5,20 +5,61 @@ const { success, error } = require('../helpers/apiRespone');
 
 exports.getAllLessons = async (req, res) => {
     try {
-        const lessonSnapshot = await db.collection('lesson').where('isDeleted', '==', false).orderBy('createdAt', 'desc').get();
-        if (lessonSnapshot.empty) return error(res, 404, 'No lessons found');
-        const lessons = lessonSnapshot.docs.map(
-            (doc) =>
-                new Lesson(
-                    doc.id,
-                    doc.data().name,
-                    doc.data().description,
-                    doc.data().createdBy,
-                    doc.data().createdAt,
-                    doc.data().updatedAt
-                )
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const search = req.query.search || '';
+
+        var baseQuery = db.collection('lesson').where('isDeleted', '==', false);
+
+        if (search.trim() !== '') {
+            baseQuery = baseQuery
+                .orderBy('name')
+                .startAt(search)
+                .endAt(search + '\uf8ff');
+        } else {
+            baseQuery = baseQuery.orderBy('createdAt', 'desc');
+        }
+
+        const totalSnapshot = await baseQuery.count().get();
+        const total = totalSnapshot.data().count;
+
+        const lessonSnapshot = await baseQuery
+            .limit(limit)
+            .offset(offset)
+            .get();
+
+        if (lessonSnapshot.empty) {
+            return success(
+                res,
+                { lessons: [], total },
+                200,
+                'No lessons found for this page'
+            );
+        }
+
+        const lessons = lessonSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            return new Lesson(
+                doc.id,
+                data.name,
+                data.description,
+                data.createdBy,
+                data.createdAt?.toDate
+                    ? data.createdAt.toDate().toISOString()
+                    : data.createdAt,
+                data.updatedAt?.toDate
+                    ? data.updatedAt.toDate().toISOString()
+                    : data.updatedAt
+            );
+        });
+
+        return success(
+            res,
+            { lessons, total },
+            200,
+            'Get lessons successfully'
         );
-        return success(res, {lessons, total: lessons.length}, 200, 'Get lessons successfully');
     } catch (err) {
         return error(res, 500, 'Internal server error', err.message);
     }
@@ -59,7 +100,7 @@ exports.createLesson = async (req, res) => {
             description,
             createdBy: user.phone,
             createdAt: new Date(),
-            isDeleted: false
+            isDeleted: false,
         });
         const newLessonSnapshot = await newLessonRef.get();
         const newLesson = new Lesson(
@@ -151,6 +192,58 @@ exports.deleteLesson = async (req, res) => {
     }
 };
 
+exports.getAssignedLessons = async (req, res) => {
+    try {
+        const snapshot = await db.collection('lesson_assignment').get();
+
+        const assignments = await Promise.all(
+            snapshot.docs.map(async (doc) => {
+                const assignment = doc.data();
+
+                const lessonDoc = await db
+                    .collection('lesson')
+                    .doc(assignment.lessonId)
+                    .get();
+
+                const studentSnapshot = await db
+                    .collection('user')
+                    .where('phone', '==', assignment.studentPhone)
+                    .where('role', '==', 'student')
+                    .limit(1)
+                    .get();
+
+                const student = studentSnapshot.empty
+                    ? null
+                    : {
+                          id: studentSnapshot.docs[0].id,
+                          ...studentSnapshot.docs[0].data(),
+                      };
+
+                return {
+                    id: doc.id,
+                    ...assignment,
+                    lesson: lessonDoc.exists
+                        ? {
+                              id: lessonDoc.id,
+                              ...lessonDoc.data(),
+                          }
+                        : null,
+                    student,
+                };
+            })
+        );
+
+        return success(
+            res,
+            assignments,
+            200,
+            'Assigned lessons retrieved successfully'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
+    }
+};
+
 exports.assignLesson = async (req, res) => {
     const { lessonId, studentPhone, title, description } = req.body;
     const user = req.user;
@@ -182,11 +275,13 @@ exports.assignLesson = async (req, res) => {
 
         const assignmentRef = await db.collection('lesson_assignment').add({
             lessonId,
+            title,
             studentPhone,
             assignedBy: user.phone,
             assignedAt: new Date(),
             completed: false,
             completedAt: null,
+            status: 'inProgress',
         });
 
         return success(
@@ -198,6 +293,40 @@ exports.assignLesson = async (req, res) => {
             },
             201,
             'Lesson assigned successfully'
+        );
+    } catch (err) {
+        return error(res, 500, 'Internal server error', err.message);
+    }
+};
+
+exports.getAssignmentStatistics = async (req, res) => {
+    try {
+        const snapshot = await db.collection('lesson_assignment').get();
+
+        const totalAssigned = snapshot.size;
+
+        let inProgress = 0;
+        let completed = 0;
+
+        snapshot.forEach((doc) => {
+            const assignment = doc.data();
+
+            if (assignment.status === 'completed') {
+                completed++;
+            } else {
+                inProgress++;
+            }
+        });
+
+        return success(
+            res,
+            {
+                totalAssigned,
+                inProgress,
+                completed,
+            },
+            200,
+            'Statistics retrieved successfully'
         );
     } catch (err) {
         return error(res, 500, 'Internal server error', err.message);
